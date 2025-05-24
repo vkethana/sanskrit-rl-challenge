@@ -13,8 +13,9 @@ from datetime import datetime
 import pandas as pd
 from datasets import Dataset, DatasetDict
 
-# You have to download this beforehand
+# You have download this data beforehand
 morphological_data_path = "vidyut-0.4.0/prakriya/"
+# I include a copy of it in the repo for simplicity (this is not good practice)
 
 def generate_dataset_of_problems():
     data = Data(morphological_data_path)
@@ -26,6 +27,7 @@ def generate_dataset_of_problems():
     prayoga = Prayoga.Kartari
     lakara=Lakara.Lat
     for dhatu in dhatus[0:20]:
+            print(str(dhatu))
             #for lakara in Lakara.choices():
             for purusha in Purusha.choices():
                 for vacana in Vacana.choices():
@@ -83,13 +85,12 @@ def generate_dataset_of_problems():
                         "vacana_iast": translit(vacana),
 
                         # Full prompt for training
-                        "pre_prompt": pre_prompt,
-                        "prompt": prompt, # this is the important one
-                        "post_prompt": post_prompt,
+                        "text": pre_prompt + prompt + post_prompt,
 
                         # Output fields
                         "answer_slp1": ground_truth.text,
                         "answer_iast": translit(ground_truth.text),
+                        "completion": translit(ground_truth.text),
                     }
                     dataset.append(dataset_entry)
     return dataset
@@ -103,6 +104,7 @@ if __name__ == "__main__":
 
     dataset = generate_dataset_of_problems()
     dataset_name = "sanskrit-morphology-rl"
+    '''
 
     hf_dataset = Dataset.from_list(dataset)
     hf_dataset.save_to_disk(dataset_name)
@@ -114,3 +116,4 @@ if __name__ == "__main__":
         print(f"Error pushing to Hugging Face: {e}")
         print("Please make sure you are logged in to Hugging Face CLI.")
         print("You can log in using the command `huggingface-cli login`.")
+    '''
