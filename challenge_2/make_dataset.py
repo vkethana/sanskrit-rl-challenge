@@ -13,22 +13,55 @@ from datetime import datetime
 import pandas as pd
 from datasets import Dataset, DatasetDict
 
-# You have download this data beforehand
+# You have download Vidyut data beforehand
+# I include a copy of it in the repo for simplicity 
+# (but this is not good practice)
 morphological_data_path = "vidyut-0.4.0/prakriya/"
-# I include a copy of it in the repo for simplicity (this is not good practice)
+
+v = Vyakarana(log_steps=False)
+
+def get_human_readable_dhatu(dhatu):
+    human_readable_dhatu = v.derive(dhatu)
+    assert human_readable_dhatu
+    human_readable_dhatu = human_readable_dhatu[0].text
+    return transliterate(human_readable_dhatu, Scheme.Slp1, Scheme.Iast)
 
 def generate_dataset_of_problems():
     data = Data(morphological_data_path)
-    dhatus = [e.dhatu for e in data.load_dhatu_entries()]
+    dhatu_list = [e.dhatu for e in data.load_dhatu_entries()]
 
-    v = Vyakarana(log_steps=False)
+    desired_dhatus = [
+        "bhāṣ",
+        "gam",
+        "bhū",
+        "dṛś",
+        "śru", # Warning: The library says that this is a 1st class dhaatu, not a 5th class (?). Nevertheless, it conjugates the verb correctly.
+        "car",
+        "han"
+    ]
+
+    dhatus = []
+    for i in dhatu_list:
+        hrd = get_human_readable_dhatu(i)
+        if hrd in desired_dhatus:
+            desired_dhatus.remove(hrd) # don't want to duplicate
+            dhatus.append(i)
+
+    print("Obtained dhatu list successfully")
 
     dataset = []
     prayoga = Prayoga.Kartari
     lakara=Lakara.Lat
-    for dhatu in dhatus[0:20]:
-            print(str(dhatu))
-            #for lakara in Lakara.choices():
+    for dhatu in dhatus:
+        '''
+        For reference:
+        Lat = simple present
+        Lan = imperfect
+        Lot = imperative
+        Lit = reduplicating past tense (this one might be hard for model)
+        Lin = optative
+        '''
+        for lakara in [Lakara.Lat, Lakara.Lit, Lakara.VidhiLin, Lakara.Lot, Lakara.Lan]:
             for purusha in Purusha.choices():
                 for vacana in Vacana.choices():
                     prakriyas = v.derive(Pada.Tinanta(
@@ -49,7 +82,7 @@ def generate_dataset_of_problems():
                     lakara_clean = str(lakara).replace("~","")
                     prompt = f'''
                     {{
-                        "dhātu": "{translit(dhatu.aupadeshika)}",
+                        "dhātu": "{get_human_readable_dhatu(dhatu)}",
                         "gaṇa": "{translit(dhatu.gana)}",
                         "prayoga": "{translit(prayoga)}",
                         "lakara": "{translit(lakara_clean)}",
@@ -63,33 +96,26 @@ def generate_dataset_of_problems():
                     {{
                         "conjugated_verb": "your_answer_here"
                     }}
-                    Note: Use IAST transliteration (ā, ī, ū, ṛ, ṝ, ḷ, ṃ, ḥ, ñ, ṅ, ṭ, ḍ, ṇ, ś, ṣ)
-                    Please don't include back ticks (```) in your response or any other form of markdown formatting. Just give me your raw JSON output which I can then throw into my JSON parser. Thanks.
+                    Note: Use IAST transliteration (ā, ī, ū, ṛ, ṝ, ḷ, ṃ, ḥ, ñ, ṅ, ṭ, ḍ, ṇ, ś, ṣ). Be careful to not confuse "h" and "ḥ"! They aren't interchangeable.
+                    Please don't include back ticks (```) in your response or any other form of Markdown formatting. Just give me raw JSON output which I will then parse using Python. Thanks.
                     '''
 
                     print(prompt)
+                    print(translit(ground_truth.text))
                     # Create dataset entry
                     dataset_entry = {
                         # Input fields
-                        "dhatu_slp1": dhatu.aupadeshika,
-                        "dhatu_iast": translit(dhatu.aupadeshika),
-                        "gana": str(dhatu.gana),
+                        "dhatu_iast": get_human_readable_dhatu(dhatu),
                         "gana_iast": translit(dhatu.gana),
-                        "prayoga": str(prayoga),
                         "prayoga_iast": translit(prayoga),
-                        "lakara": str(lakara).replace("~",""),
                         "lakara_iast": translit(str(lakara).replace("~","")),
-                        "purusha": str(purusha),
                         "purusha_iast": translit(purusha),
-                        "vacana": str(vacana),
                         "vacana_iast": translit(vacana),
 
                         # Full prompt for training
                         "text": pre_prompt + prompt + post_prompt,
 
                         # Output fields
-                        "answer_slp1": ground_truth.text,
-                        "answer_iast": translit(ground_truth.text),
                         "completion": translit(ground_truth.text),
                     }
                     dataset.append(dataset_entry)
@@ -104,7 +130,6 @@ if __name__ == "__main__":
 
     dataset = generate_dataset_of_problems()
     dataset_name = "sanskrit-morphology-rl"
-    '''
 
     hf_dataset = Dataset.from_list(dataset)
     hf_dataset.save_to_disk(dataset_name)
@@ -116,4 +141,3 @@ if __name__ == "__main__":
         print(f"Error pushing to Hugging Face: {e}")
         print("Please make sure you are logged in to Hugging Face CLI.")
         print("You can log in using the command `huggingface-cli login`.")
-    '''
