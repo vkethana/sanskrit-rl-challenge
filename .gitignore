@@ -1,3 +1,7 @@
 .venv
 challenge_2/sanskrit-morphology-rl
 challenge_2/__pycache__
+challenge_3/gretil_data
+.DS_Store
+challenge_2/.DS_Store
+challenge_3/.DS_Store
