@@ -1,8 +1,3 @@
-''' IMPORTANT
-Before running this script, please run `huggingface-cli login` in your terminal
-in order to log into hugging face.
-'''
-
 from vidyut.prakriya import *
 from vidyut.lipi import  *
 import os
